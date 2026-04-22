@@ -1,0 +1,181 @@
+name: Deploy Prototype
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  # Shared Entra ID app for all Design Team SWAs
+  AAD_CLIENT_ID: "fb4cfe42-ef82-4bb4-81eb-c64b9b8d5db1"
+  RESOURCE_GROUP: "rg-design-prototypes"
+  LOCATION: "eastus2"
+
+permissions:
+  contents: read
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "deploy-${{ github.repository }}"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      swa_url: ${{ steps.swa.outputs.hostname }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create or Get SWA
+        id: swa
+        run: |
+          # Generate SWA name from repo name (lowercase, replace non-alphanumeric)
+          REPO_NAME="${{ github.event.repository.name }}"
+          SWA_NAME=$(echo "swa-${REPO_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-60)
+          echo "SWA Name: $SWA_NAME"
+          
+          # Check if SWA exists
+          EXISTING=$(az staticwebapp show --name "$SWA_NAME" --resource-group "${{ env.RESOURCE_GROUP }}" --query "defaultHostname" -o tsv 2>/dev/null || echo "")
+          
+          if [ -z "$EXISTING" ]; then
+            echo "Creating new Static Web App: $SWA_NAME"
+            az staticwebapp create \
+              --name "$SWA_NAME" \
+              --resource-group "${{ env.RESOURCE_GROUP }}" \
+              --location "${{ env.LOCATION }}" \
+              --sku Standard \
+              --tags \
+                repo="${{ github.repository }}" \
+                purpose="Design team prototype" \
+                owner="tony.keung@cin7.com" \
+                createdby="github-actions" \
+                createdate="$(date +%Y-%m-%d)" \
+                costcenter="" \
+                env="" \
+                service="" \
+                monitoredwith="" \
+                tfc_workspace="manual" \
+                tfcworkspace=""
+            
+            HOSTNAME=$(az staticwebapp show --name "$SWA_NAME" --resource-group "${{ env.RESOURCE_GROUP }}" --query "defaultHostname" -o tsv)
+          else
+            echo "SWA already exists: $EXISTING"
+            HOSTNAME="$EXISTING"
+          fi
+          
+          echo "hostname=https://$HOSTNAME" >> $GITHUB_OUTPUT
+          echo "swa_name=$SWA_NAME" >> $GITHUB_OUTPUT
+
+      - name: Configure SWA Auth Settings
+        run: |
+          SWA_NAME="${{ steps.swa.outputs.swa_name }}"
+          
+          # Set Entra ID credentials for authentication
+          az staticwebapp appsettings set \
+            --name "$SWA_NAME" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --setting-names \
+              "AAD_CLIENT_ID=${{ env.AAD_CLIENT_ID }}" \
+              "AAD_CLIENT_SECRET=${{ secrets.AAD_CLIENT_SECRET }}"
+
+      - name: Add Redirect URI to Entra App
+        continue-on-error: true
+        run: |
+          HOSTNAME="${{ steps.swa.outputs.hostname }}"
+          CALLBACK_URI="${HOSTNAME}/.auth/login/aad/callback"
+          APP_ID="${{ env.AAD_CLIENT_ID }}"
+          
+          echo "Adding redirect URI: $CALLBACK_URI"
+          
+          # Get existing redirect URIs
+          EXISTING_URIS=$(az ad app show --id "$APP_ID" --query "web.redirectUris" -o tsv 2>/dev/null || echo "")
+          
+          # Check if URI already exists
+          if echo "$EXISTING_URIS" | grep -q "$CALLBACK_URI"; then
+            echo "Redirect URI already exists"
+          else
+            # Add new redirect URI
+            az ad app update --id "$APP_ID" --web-redirect-uris $EXISTING_URIS "$CALLBACK_URI" 2>/dev/null || \
+              echo "⚠️ Could not add redirect URI. Please add manually: $CALLBACK_URI"
+          fi
+
+      - name: Get SWA Deployment Token
+        id: token
+        run: |
+          SWA_NAME="${{ steps.swa.outputs.swa_name }}"
+          TOKEN=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "${{ env.RESOURCE_GROUP }}" --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Copy staticwebapp.config.json to dist
+        run: cp staticwebapp.config.json dist/
+
+      - name: Deploy to Azure Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          skip_app_build: true
+          app_location: "./dist"
+
+      - name: Output deployed URL
+        id: url
+        run: |
+          SWA_URL="${{ steps.swa.outputs.hostname }}"
+          echo "deployed_url=$SWA_URL" >> $GITHUB_OUTPUT
+          echo "## 🚀 Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** $SWA_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔐 **Authentication:** Cin7 Entra ID login required" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Slack
+        if: success() && vars.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚀 *Prototype Deployed!*\n*Repo:* <${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}>\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}` by ${{ github.actor }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "👉 *View Prototype:* <${{ steps.swa.outputs.hostname }}|${{ steps.swa.outputs.hostname }}>\n🔐 *Auth:* Cin7 login required"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
