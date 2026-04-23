@@ -22,7 +22,7 @@ Add these 3 secrets:
 | `AZURE_SUBSCRIPTION_ID` | `42d37164-473e-4e6e-b05b-4ee43c04e295` |
 
 ### Step 3: Request Deployment Access
-⚠️ **One-time setup required** - Ask Tony to enable deployment for your repo:
+⚠️ **One-time setup required** - Ask SRE team to enable deployment for your repo:
 > "Please enable deployment for `Cin7Americas/<your-repo-name>`"
 
 This is a one-time admin task that allows your repo to deploy to Azure.
