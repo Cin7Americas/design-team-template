@@ -51,10 +51,12 @@ Use a **team prefix** to keep prototypes organized:
 
 | Team | Repo Name Example | URL |
 |------|-------------------|-----|
-| Core Design | `core-checkout-redesign` | `/core-checkout-redesign/` |
-| Core Design | `core-product-page` | `/core-product-page/` |
+| Core | `core-checkout-redesign` | `/core-checkout-redesign/` |
+| Core | `core-product-page` | `/core-product-page/` |
 | Omni | `omni-dashboard-v2` | `/omni-dashboard-v2/` |
 | Omni | `omni-settings-panel` | `/omni-settings-panel/` |
+| Design | `design-style-guide` | `/design-style-guide/` |
+| Design | `design-component-library` | `/design-component-library/` |
 
 **Format:** `<team>-<project-name>`
 
