@@ -68,6 +68,24 @@ This template includes a working Vite setup. Just modify `index.html` or add Rea
 }
 ```
 
+### Supported Frameworks
+
+This works with **any framework that builds to static files**:
+
+| Framework | Build Command | Output Folder |
+|-----------|---------------|---------------|
+| Plain HTML/CSS/JS | (none needed) | Copy directly |
+| Vite (default) | `npm run build` | `dist/` ✅ |
+| React (CRA) | `npm run build` | `build/` |
+| Vue CLI | `npm run build` | `dist/` ✅ |
+| Next.js (static) | `next export` | `out/` |
+| Svelte | `npm run build` | `build/` |
+| Angular | `ng build` | `dist/<project>/` |
+
+> **Note:** If your framework uses a different output folder than `dist/`, update the workflow file (`.github/workflows/deploy.yml`) to upload from the correct folder.
+
+**Not supported:** Server-side rendering (SSR) or backend APIs — this is for static prototypes only.
+
 ---
 
 ## 🔧 Admin Setup (Tony Only)
