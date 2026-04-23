@@ -45,7 +45,24 @@ https://ca-design-prototypes.thankfulwave-36f43db2.australiaeast.azurecontainera
 
 ---
 
-## 📁 Project Requirements
+## � Repo Naming Convention
+
+Use a **team prefix** to keep prototypes organized:
+
+| Team | Repo Name Example | URL |
+|------|-------------------|-----|
+| Core Design | `core-checkout-redesign` | `/core-checkout-redesign/` |
+| Core Design | `core-product-page` | `/core-product-page/` |
+| Omni | `omni-dashboard-v2` | `/omni-dashboard-v2/` |
+| Omni | `omni-settings-panel` | `/omni-settings-panel/` |
+
+**Format:** `<team>-<project-name>`
+
+This keeps the landing page tidy and makes it easy to identify which team owns each prototype.
+
+---
+
+## �📁 Project Requirements
 
 Your project needs:
 - `package.json` with a `build` script
