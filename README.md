@@ -5,10 +5,19 @@ Auto-deploy web prototypes to Azure with Cin7-only authentication.
 ## 🚀 Quick Start (Design Team)
 
 ### Step 1: Create Your Repo
-1. Go to [this template](https://github.com/Cin7Americas/design-team-template)
-2. Click **"Use this template"** → **"Create a new repository"**
-3. Name your repo (e.g., `checkout-redesign`)
-4. Keep it in **Cin7Americas** organization
+
+1. Go to the template repo: [Cin7Americas/design-team-template](https://github.com/Cin7Americas/design-team-template)
+2. Click the green **"Use this template"** button (top right)
+3. Select **"Create a new repository"**
+4. Fill in the details:
+   - **Owner:** Select `Cin7Americas` (must be in the org)
+   - **Repository name:** Use team prefix format: `core-`, `omni-`, or `design-`  
+     Examples: `core-checkout-redesign`, `omni-dashboard-v2`, `design-style-guide`
+   - **Description:** (optional) Brief description of your prototype
+   - **Visibility:** Private (recommended)
+5. Click **"Create repository"**
+
+> ⚠️ **Note:** You need Write access to Cin7Americas org to create repos. If you don't have access, ask your team lead.
 
 ### Step 2: Add GitHub Secrets
 Go to your new repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
